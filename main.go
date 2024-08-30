@@ -12,6 +12,11 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
+type httpMethodOptions struct {
+	contentType string
+	body        io.Reader
+}
+
 var scheduler gocron.Scheduler
 
 func init() {
@@ -24,10 +29,22 @@ func init() {
 	}
 }
 
-func CreateTask(url string, method func(string) (*http.Response, error)) gocron.Task {
+func sendRequest(method string, url string, options httpMethodOptions) (*http.Response, error) {
+	switch strings.ToUpper(method) {
+	case "GET":
+		return http.Get(url)
+	case "POST":
+		return http.Post(url, options.contentType, options.body)
+	default:
+		return nil, fmt.Errorf("unsupported HTTP method: %s", method)
+	}
+}
+
+func CreateTask(url string, method string) gocron.Task {
 	return gocron.NewTask(
-		func(url string, method func(string) (*http.Response, error)) {
-			resp, err := method(url)
+		func(url string, method string) {
+			// TODO: request bodyなどを設定
+			resp, err := sendRequest(method, url, httpMethodOptions{})
 			if err != nil {
 				logger("Error sending request:", err)
 				return
@@ -41,23 +58,12 @@ func CreateTask(url string, method func(string) (*http.Response, error)) gocron.
 
 			logger("Response Body:", string(body), "Status:", resp.Status)
 		},
-		"https://catfact.ninja/fact",
-		http.Get,
+		url,
+		method,
 	)
 }
 
 func registerJob(minSec, maxSec int, url string, method string) {
-	// TODO: サポートするHTTPメソッドを増やす
-	methods := map[string]func(string) (*http.Response, error){
-		"GET": http.Get,
-		// "POST": http.Post,
-	}
-	httpMethod, exists := methods[strings.ToUpper(method)]
-	if !exists {
-		logger("Error: Unsupported HTTP method:", method)
-		return
-	}
-
 	_, err := scheduler.NewJob(
 		gocron.DurationRandomJob(
 			time.Duration(minSec)*time.Second,
@@ -65,7 +71,7 @@ func registerJob(minSec, maxSec int, url string, method string) {
 		),
 		CreateTask(
 			url,
-			httpMethod,
+			method,
 		),
 	)
 	if err != nil {
