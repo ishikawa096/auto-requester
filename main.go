@@ -110,7 +110,6 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 func currentTimeStr() string {
 	tz, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
-		logger("Error loading location:", err)
 		return ""
 	}
 	return time.Now().In(tz).Format("2006-01-02 15:04:05 MST")
