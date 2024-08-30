@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,11 +41,10 @@ func sendRequest(method string, url string, options httpMethodOptions) (*http.Re
 	}
 }
 
-func CreateTask(url string, method string) gocron.Task {
+func CreateTask(method string, url string, options httpMethodOptions) gocron.Task {
 	return gocron.NewTask(
-		func(url string, method string) {
-			// TODO: request bodyなどを設定
-			resp, err := sendRequest(method, url, httpMethodOptions{})
+		func(method string, url string, options httpMethodOptions) {
+			resp, err := sendRequest(method, url, options)
 			if err != nil {
 				logger("Error sending request:", err)
 				return
@@ -58,20 +58,22 @@ func CreateTask(url string, method string) gocron.Task {
 
 			logger("Response Body:", string(body), "Status:", resp.Status)
 		},
-		url,
 		method,
+		url,
+		options,
 	)
 }
 
-func registerJob(minSec, maxSec int, url string, method string) {
+func registerJob(minSec, maxSec int, method string, url string, options httpMethodOptions) {
 	_, err := scheduler.NewJob(
 		gocron.DurationRandomJob(
 			time.Duration(minSec)*time.Second,
 			time.Duration(maxSec)*time.Second,
 		),
 		CreateTask(
-			url,
 			method,
+			url,
+			options,
 		),
 	)
 	if err != nil {
@@ -130,9 +132,54 @@ func logger(msgs ...interface{}) {
 	fmt.Printf("%s %s\n", currentTimeStr(), strings.Join(messages, " "))
 }
 
+func getSettingValues() (int, int, string, string, httpMethodOptions) {
+	// default values
+	minSec := 4
+	maxSec := 6
+	url := "http://localhost:3000"
+	method := "GET"
+	contentType := "application/json"
+
+	if val, exists := os.LookupEnv("INTERVAL_MIN_SEC"); exists {
+		if v, err := strconv.Atoi(val); err == nil {
+			minSec = v
+		}
+	}
+	if val, exists := os.LookupEnv("INTERVAL_MAX_SEC"); exists {
+		if v, err := strconv.Atoi(val); err == nil {
+			maxSec = v
+		}
+	}
+	if val, exists := os.LookupEnv("HTTP_METHOD"); exists {
+		method = val
+	}
+	if val, exists := os.LookupEnv("TARGET_URL"); exists {
+		url = val
+	}
+	if val, exists := os.LookupEnv("HTTP_HEADERS"); exists {
+		contentType = val
+	}
+	file, err := os.Open("/etc/app/request.json")
+	if err != nil {
+		logger("Error opening file:", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+	// read the file content to memory
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
+		logger("Error reading file:", err)
+		os.Exit(1)
+	}
+	options := httpMethodOptions{
+		contentType: contentType,
+		body:        strings.NewReader(string(fileContent)),
+	}
+	return minSec, maxSec, method, url, options
+}
+
 func main() {
-	// TODO: 環境変数から取得する
-	registerJob(4, 6, "https://catfact.ninja/fact", "GET")
+	registerJob(getSettingValues())
 
 	// start the scheduler
 	scheduler.Start()
