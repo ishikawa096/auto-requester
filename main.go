@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -17,7 +19,57 @@ func init() {
 	// initialize the scheduler
 	scheduler, err = gocron.NewScheduler()
 	if err != nil {
-		fmt.Println("Error creating scheduler:", err)
+		logger("Error creating scheduler:", err)
+		os.Exit(1)
+	}
+}
+
+func CreateTask(url string, method func(string) (*http.Response, error)) gocron.Task {
+	return gocron.NewTask(
+		func(url string, method func(string) (*http.Response, error)) {
+			resp, err := method(url)
+			if err != nil {
+				logger("Error sending request:", err)
+				return
+			}
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logger("Error reading response body:", err)
+				return
+			}
+
+			logger("Response Body:", string(body), "Status:", resp.Status)
+		},
+		"https://catfact.ninja/fact",
+		http.Get,
+	)
+}
+
+func registerJob(minSec, maxSec int, url string, method string) {
+	// TODO: サポートするHTTPメソッドを増やす
+	methods := map[string]func(string) (*http.Response, error){
+		"GET": http.Get,
+		// "POST": http.Post,
+	}
+	httpMethod, exists := methods[strings.ToUpper(method)]
+	if !exists {
+		logger("Error: Unsupported HTTP method:", method)
+		return
+	}
+
+	_, err := scheduler.NewJob(
+		gocron.DurationRandomJob(
+			time.Duration(minSec)*time.Second,
+			time.Duration(maxSec)*time.Second,
+		),
+		CreateTask(
+			url,
+			httpMethod,
+		),
+	)
+	if err != nil {
+		logger("Error creating job:", err)
 		os.Exit(1)
 	}
 }
@@ -30,10 +82,10 @@ func StopHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := scheduler.StopJobs()
 	if err != nil {
-		fmt.Println("Error stoping jobs:", err)
+		logger("Error stoping jobs:", err)
 		os.Exit(1)
 	} else {
-		fmt.Println(time.Now(), "Scheduler Stop Jobs!")
+		logger(time.Now(), "Scheduler Stop Jobs!")
 	}
 }
 
@@ -44,34 +96,41 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 	scheduler.Start()
-	fmt.Println(time.Now(), "Scheduler Restart!")
+	logger("Scheduler Restart!")
+}
+
+func currentTimeStr() string {
+	tz, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		logger("Error loading location:", err)
+		return ""
+	}
+	return time.Now().In(tz).Format("2006-01-02 15:04:05 MST")
+}
+
+func logger(msgs ...interface{}) {
+	var messages []string
+	for _, msg := range msgs {
+		switch v := msg.(type) {
+		case string:
+			messages = append(messages, v)
+		case error:
+			messages = append(messages, v.Error())
+		default:
+			messages = append(messages, fmt.Sprintf("%v", v))
+		}
+	}
+	// TODO: colorize, log level
+	fmt.Printf("%s %s\n", currentTimeStr(), strings.Join(messages, " "))
 }
 
 func main() {
-	_, err := scheduler.NewJob(
-		gocron.DurationRandomJob(
-			// TODO: 指定した時間間隔でジョブを実行する
-			4*time.Second,
-			6*time.Second,
-		),
-		gocron.NewTask(
-			func(a string, b time.Time) {
-				// TODO: httpリクエストを送信する
-
-				fmt.Println(time.Now(), "executing task with params:", a, b)
-			},
-			"hello",
-			time.Now(),
-		),
-	)
-	if err != nil {
-		fmt.Println("Error creating job:", err)
-		os.Exit(1)
-	}
+	// TODO: 環境変数から取得する
+	registerJob(4, 6, "https://catfact.ninja/fact", "GET")
 
 	// start the scheduler
 	scheduler.Start()
-	fmt.Println(time.Now(), "Scheduler Start!")
+	logger("Scheduler Start!")
 
 	// register handlers
 	http.HandleFunc("/stop", StopHandler)
@@ -79,9 +138,9 @@ func main() {
 
 	// start the HTTP server in a goroutine
 	go func() {
-		fmt.Println("HTTP server is running on port 8080")
+		logger("HTTP server is running on port 8080")
 		if err := http.ListenAndServe(":8080", nil); err != nil {
-			fmt.Println("Error starting HTTP server:", err)
+			logger("Error starting HTTP server:", err)
 		}
 	}()
 
