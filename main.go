@@ -4,53 +4,80 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
 )
 
-// HelloHandler は "Hello, World!" を返すエンドポイント
-func HelloHandler(w http.ResponseWriter, r *http.Request) {
+var scheduler gocron.Scheduler
+
+func init() {
+	var err error
+	// initialize the scheduler
+	scheduler, err = gocron.NewScheduler()
+	if err != nil {
+		fmt.Println("Error creating scheduler:", err)
+		os.Exit(1)
+	}
+}
+
+// Stop job handler
+func StopHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]string{"message": "Hello, World!"}
-	fmt.Println("Request received")
+	response := map[string]string{"message": "job stop! To restart, please access /start"}
 	json.NewEncoder(w).Encode(response)
+
+	err := scheduler.StopJobs()
+	if err != nil {
+		fmt.Println("Error stoping jobs:", err)
+		os.Exit(1)
+	} else {
+		fmt.Println(time.Now(), "Scheduler Stop Jobs!")
+	}
+}
+
+// Start job handler
+func StartHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]string{"message": "Scheduler Start! To stop, please access /stop"}
+	json.NewEncoder(w).Encode(response)
+
+	scheduler.Start()
+	fmt.Println(time.Now(), "Scheduler Restart!")
 }
 
 func main() {
-	s, err := gocron.NewScheduler()
-	if err != nil {
-		// handle error
-	}
-
-	// add a job to the scheduler
-	j, err := s.NewJob(
-		gocron.DurationJob(
-			10*time.Second,
+	_, err := scheduler.NewJob(
+		gocron.DurationRandomJob(
+			// TODO: 指定した時間間隔でジョブを実行する
+			4*time.Second,
+			6*time.Second,
 		),
 		gocron.NewTask(
 			func(a string, b time.Time) {
-				// 現在時刻を出力
-				fmt.Println("Hello, World!", a, b)
+				// TODO: httpリクエストを送信する
+
+				fmt.Println(time.Now(), "executing task with params:", a, b)
 			},
 			"hello",
 			time.Now(),
 		),
 	)
 	if err != nil {
-		// handle error
+		fmt.Println("Error creating job:", err)
+		os.Exit(1)
 	}
 
-	// each job has a unique id
-	fmt.Println(j.ID())
-
 	// start the scheduler
-	s.Start()
+	scheduler.Start()
+	fmt.Println(time.Now(), "Scheduler Start!")
 
-	// HTTP サーバーの設定
-	http.HandleFunc("/hello", HelloHandler)
+	// register handlers
+	http.HandleFunc("/stop", StopHandler)
+	http.HandleFunc("/start", StartHandler)
 
-	// ゴルーチンで HTTP サーバーを実行
+	// start the HTTP server in a goroutine
 	go func() {
 		fmt.Println("HTTP server is running on port 8080")
 		if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -58,15 +85,6 @@ func main() {
 		}
 	}()
 
-	// メインゴルーチンをブロック
+	// block main goroutine forever
 	select {}
-
-	// // block until you are ready to shut down
-	// time.Sleep(time.Minute)
-
-	// // when you're done, shut it down
-	// err = s.Shutdown()
-	// if err != nil {
-	// 	// handle error
-	// }
 }
