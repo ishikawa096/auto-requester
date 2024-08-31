@@ -8,12 +8,12 @@ services:
     stdin_open: true
     volumes:
       - .:/app
-      - ./request.json:/etc/app/request.json
+      - ./body.json:/etc/app/body.json
     ports:
       - "8080:8080"
     environment:
       - INTERVAL_MIN_SEC=4
       - INTERVAL_MAX_SEC=6
-      - TARGET_URL=https://catfact.ninja/fact
+      - TARGET_URL=https://httpbin.org/post
       - HTTP_METHOD=POST
-      - HTTP_HEADERS=Content-Type:application/json
+      - CONTENT_TYPE=application/json

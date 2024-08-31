@@ -133,8 +133,8 @@ func logger(msgs ...interface{}) {
 
 func getSettingValues() (int, int, string, string, httpMethodOptions) {
 	// default values
-	minSec := 4
-	maxSec := 6
+	minSec := 3
+	maxSec := 5
 	url := "http://localhost:3000"
 	method := "GET"
 	contentType := "application/json"
@@ -155,10 +155,10 @@ func getSettingValues() (int, int, string, string, httpMethodOptions) {
 	if val, exists := os.LookupEnv("TARGET_URL"); exists {
 		url = val
 	}
-	if val, exists := os.LookupEnv("HTTP_HEADERS"); exists {
+	if val, exists := os.LookupEnv("CONTENT_TYPE"); exists {
 		contentType = val
 	}
-	file, err := os.Open("/etc/app/request.json")
+	file, err := os.Open("/etc/app/body.json")
 	if err != nil {
 		logger("Error opening file:", err)
 		os.Exit(1)

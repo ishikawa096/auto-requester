@@ -1,4 +1,4 @@
-module auto-reqester
+module auto-requester
 
 go 1.23.0
 
