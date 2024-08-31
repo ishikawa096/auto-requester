@@ -1,4 +1,4 @@
-module auto-requester
+module github.com/ishikawa096/auto-requester
 
 go 1.23.0
 
