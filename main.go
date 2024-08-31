@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,9 +14,11 @@ import (
 	"github.com/go-co-op/gocron/v2"
 )
 
-type httpMethodOptions struct {
+type httpOptions struct {
+	method      string // GET, POST, PUT, DELETE
+	url         string
 	contentType string
-	body        io.Reader
+	body        []byte
 }
 
 var scheduler gocron.Scheduler
@@ -30,21 +33,29 @@ func init() {
 	}
 }
 
-func sendRequest(method string, url string, options httpMethodOptions) (*http.Response, error) {
-	switch strings.ToUpper(method) {
-	case "GET":
-		return http.Get(url)
-	case "POST":
-		return http.Post(url, options.contentType, options.body)
-	default:
-		return nil, fmt.Errorf("unsupported HTTP method: %s", method)
+func sendRequest(options httpOptions) (*http.Response, error) {
+	// リクエストボディを再利用可能な形にするために、bytes.Readerを使用
+	bodyReader := bytes.NewReader(options.body)
+
+	req, err := http.NewRequest(options.method, options.url, bodyReader)
+	if err != nil {
+		return nil, err
 	}
+	req.Header.Set("Content-Type", options.contentType)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
-func CreateTask(method string, url string, options httpMethodOptions) gocron.Task {
+func CreateTask(options httpOptions) gocron.Task {
 	return gocron.NewTask(
-		func(method string, url string, options httpMethodOptions) {
-			resp, err := sendRequest(method, url, options)
+		func(options httpOptions) {
+			resp, err := sendRequest(options)
 			if err != nil {
 				logger("Error sending request:", err)
 				return
@@ -58,23 +69,17 @@ func CreateTask(method string, url string, options httpMethodOptions) gocron.Tas
 
 			logger("Response Body:", string(body), "Status:", resp.Status)
 		},
-		method,
-		url,
 		options,
 	)
 }
 
-func registerJob(minSec, maxSec int, method string, url string, options httpMethodOptions) {
+func registerJob(minSec, maxSec int, options httpOptions) {
 	_, err := scheduler.NewJob(
 		gocron.DurationRandomJob(
 			time.Duration(minSec)*time.Second,
 			time.Duration(maxSec)*time.Second,
 		),
-		CreateTask(
-			method,
-			url,
-			options,
-		),
+		CreateTask(options),
 	)
 	if err != nil {
 		logger("Error creating job:", err)
@@ -131,7 +136,23 @@ func logger(msgs ...interface{}) {
 	fmt.Printf("%s %s\n", currentTimeStr(), strings.Join(messages, " "))
 }
 
-func getSettingValues() (int, int, string, string, httpMethodOptions) {
+func getRequestBody() []byte {
+	file, err := os.Open("/etc/app/body.json")
+	if err != nil {
+		logger("Error opening file:", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+	// read the file content to memory
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
+		logger("Error reading file:", err)
+		os.Exit(1)
+	}
+	return fileContent
+}
+
+func getSettingValues() (int, int, httpOptions) {
 	// default values
 	minSec := 3
 	maxSec := 5
@@ -150,7 +171,7 @@ func getSettingValues() (int, int, string, string, httpMethodOptions) {
 		}
 	}
 	if val, exists := os.LookupEnv("HTTP_METHOD"); exists {
-		method = val
+		method = strings.ToUpper(val)
 	}
 	if val, exists := os.LookupEnv("TARGET_URL"); exists {
 		url = val
@@ -158,23 +179,19 @@ func getSettingValues() (int, int, string, string, httpMethodOptions) {
 	if val, exists := os.LookupEnv("CONTENT_TYPE"); exists {
 		contentType = val
 	}
-	file, err := os.Open("/etc/app/body.json")
-	if err != nil {
-		logger("Error opening file:", err)
-		os.Exit(1)
+
+	var requestBody []byte = nil
+	if method == "POST" || method == "PUT" {
+		requestBody = getRequestBody()
 	}
-	defer file.Close()
-	// read the file content to memory
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		logger("Error reading file:", err)
-		os.Exit(1)
-	}
-	options := httpMethodOptions{
+
+	options := httpOptions{
+		method:      method,
+		url:         url,
 		contentType: contentType,
-		body:        strings.NewReader(string(fileContent)),
+		body:        requestBody,
 	}
-	return minSec, maxSec, method, url, options
+	return minSec, maxSec, options
 }
 
 func main() {

@@ -29,7 +29,7 @@ curl http://localhost:8080/start
 ### リクエストボディの設定
 
 Volume mountを用いて`/etc/app/body.json`に送信したいリクエストボディを設定できます。<br>
-GETリクエストの場合は送信されません。
+GET, DELETEリクエストの場合は送信されません。
 
 ```yml
     volumes:
@@ -62,7 +62,7 @@ services:
 | INTERVAL_MIN_SEC  | リクエストを送信する最小の間隔(秒)           | 3           |
 | INTERVAL_MAX_SEC  | リクエストを送信する最大の時間間隔(秒)<br>INTERVAL_MIN_SECとの間のランダムな間隔でリクエストが実行されます。<br>一定間隔にしたい場合、INTERVAL_MIN_SECと同じ値にしてください            | 5           |
 | TARGET_URL        | リクエストの送信先URL                 | http://localhost:3000 |
-| HTTP_METHOD       | リクエストのHTTPメソッド。<br>使用可能: GET, POST                         | GET        |
+| HTTP_METHOD       | リクエストのHTTPメソッド                         | GET        |
 | CONTENT_TYPE      | リクエストに含めるHTTPヘッダー                   | application/json |
 | (TODO)RANDOM_BODY       | リクエストボディのjsonが配列の場合、配列内の要素から1つを毎回ランダムに選択し、リクエストボディとして用います| true        |
 
