@@ -3,10 +3,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     tty: true
     stdin_open: true
     volumes:
       - .:/app
+      - ./body.json:/etc/app/body.json
     ports:
       - "8080:8080"
-    # command: go run main.go
+    environment:
+      - INTERVAL_MIN_SEC=4
+      - INTERVAL_MAX_SEC=6
+      - TARGET_URL=https://httpbin.org/post
+      - HTTP_METHOD=POST
+      - CONTENT_TYPE=application/json

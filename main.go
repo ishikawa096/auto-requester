@@ -1,47 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"time"
+	"net/http"
 
-	"github.com/go-co-op/gocron/v2"
+	"github.com/ishikawa096/auto-requester/handlers"
+	"github.com/ishikawa096/auto-requester/scheduler"
+	"github.com/ishikawa096/auto-requester/utils"
 )
 
 func main() {
-	s, err := gocron.NewScheduler()
-	if err != nil {
-		// handle error
-	}
+	scheduler.StartJob()
 
-	// add a job to the scheduler
-	j, err := s.NewJob(
-		gocron.DurationJob(
-			10*time.Second,
-		),
-		gocron.NewTask(
-			func(a string, b int) {
-				fmt.Println("Hello, World!")
-			},
-			"hello",
-			1,
-		),
-	)
-	if err != nil {
-		// handle error
-	}
+	// register handlers
+	http.HandleFunc("/stop", handlers.StopHandler)
+	http.HandleFunc("/start", handlers.StartHandler)
 
-	// each job has a unique id
-	fmt.Println(j.ID())
+	// start the HTTP server in a goroutine
+	go func() {
+		utils.Logger("HTTP server is running on port 8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			utils.Logger("Error starting HTTP server:", err)
+		}
+	}()
 
-	// start the scheduler
-	s.Start()
-
-	// block until you are ready to shut down
-	time.Sleep(time.Minute)
-
-	// when you're done, shut it down
-	err = s.Shutdown()
-	if err != nil {
-		// handle error
-	}
+	// block main goroutine forever
+	select {}
 }
