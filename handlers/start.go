@@ -11,7 +11,7 @@ import (
 // Start job handler
 func StartHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]string{"message": "Scheduler Start! To stop, please access /stop"}
+	response := map[string]string{"message": "Sucessfully started the job! To stop, please access /stop"}
 	json.NewEncoder(w).Encode(response)
 
 	scheduler.Scheduler.Start()

@@ -12,7 +12,7 @@ import (
 // Stop job handler
 func StopHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]string{"message": "job stop! To restart, please access /start"}
+	response := map[string]string{"message": "Sucessfully stopped the job! To restart, please access /start"}
 	json.NewEncoder(w).Encode(response)
 
 	err := scheduler.Scheduler.StopJobs()

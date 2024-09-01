@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -93,9 +94,10 @@ func registerJob(minSec, maxSec int, options requestOptions) {
 }
 
 func StartJob() {
-	registerJob(getConfigs())
+	minSec, maxSec, options := getConfigs()
+	registerJob(minSec, maxSec, options)
 
 	// start the scheduler
 	Scheduler.Start()
-	utils.Logger("Scheduler Start!")
+	utils.Logger("Scheduler Start! 🏃 interval:", fmt.Sprint(minSec)+"s ~", fmt.Sprint(maxSec)+"s", options.method, options.url)
 }
