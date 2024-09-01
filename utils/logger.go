@@ -21,11 +21,11 @@ func Logger(msgs ...interface{}) {
 		case string:
 			messages = append(messages, v)
 		case error:
-			messages = append(messages, v.Error())
+			messages = append(messages, Red(v.Error()))
 		default:
 			messages = append(messages, fmt.Sprintf("%v", v))
 		}
 	}
-	// TODO: colorize, log level
-	fmt.Printf("%s %s\n", currentTimeStr(), strings.Join(messages, " "))
+	// TODO: log level
+	fmt.Printf("%s %s\n", Blue(currentTimeStr()), strings.Join(messages, " "))
 }

@@ -34,7 +34,7 @@ func getIntEnv(envKey string, defaultValue int) int {
 	}
 	value, err := strconv.Atoi(valueStr)
 	if err != nil {
-		utils.Logger("⚠️ invalid value for", envKey, err)
+		utils.Logger("🚨 invalid value for", utils.Yellow(envKey), err)
 		return defaultValue
 	}
 	return value
@@ -47,7 +47,7 @@ func getBoolEnv(envKey string, defaultValue bool) bool {
 	}
 	value, err := strconv.ParseBool(valueStr)
 	if err != nil {
-		utils.Logger("⚠️ invalid value for", envKey, err)
+		utils.Logger("🚨 invalid value for", utils.Yellow(envKey), err)
 		return defaultValue
 	}
 	return value

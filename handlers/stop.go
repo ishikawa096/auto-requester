@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/ishikawa096/auto-requester/scheduler"
 	"github.com/ishikawa096/auto-requester/utils"
@@ -21,6 +20,6 @@ func StopHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Logger("Error stoping jobs:", err)
 		os.Exit(1)
 	} else {
-		utils.Logger(time.Now(), "Scheduler Stop Jobs!")
+		utils.Logger(utils.Yellow("Scheduler Stop...💤"))
 	}
 }

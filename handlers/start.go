@@ -15,5 +15,5 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 	scheduler.Scheduler.Start()
-	utils.Logger("Scheduler Restart!")
+	utils.Logger(utils.Green("Scheduler Restart!✨"))
 }
