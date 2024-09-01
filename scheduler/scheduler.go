@@ -31,14 +31,15 @@ func init() {
 	}
 }
 
-func sendRequest(options requestOptions) (*http.Response, error) {
-	var requestBody []byte = nil
-	if options.randomize {
-		requestBody = selectRandomElement(options.body)
-	} else {
-		requestBody = options.body
+// if randomize is true, select a random element from the array
+func collectRequestBody(requestBody []byte, randomize bool) []byte {
+	if randomize {
+		return selectRandomElement(requestBody)
 	}
+	return requestBody
+}
 
+func performHttpRequest(requestBody []byte, options requestOptions) (*http.Response, error) {
 	// To use the request body multiple times, we need to create a reader
 	bodyReader := bytes.NewReader(requestBody)
 
@@ -53,29 +54,25 @@ func sendRequest(options requestOptions) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return resp, nil
 }
 
-func createTask(options requestOptions) gocron.Task {
-	return gocron.NewTask(
-		func(options requestOptions) {
-			resp, err := sendRequest(options)
-			if err != nil {
-				utils.Logger("Error sending request:", err)
-				return
-			}
-			defer resp.Body.Close()
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				utils.Logger("Error reading response body:", err)
-				return
-			}
+func processRequest(options requestOptions) {
+	requestBody := collectRequestBody(options.body, options.randomize)
+	resp, err := performHttpRequest(requestBody, options)
+	if err != nil {
+		utils.Logger("Error sending request:", err)
+		return
+	}
+	defer resp.Body.Close()
 
-			utils.Logger("Response Body:", string(body), "Status:", resp.Status)
-		},
-		options,
-	)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		utils.Logger("Error reading response body:", err)
+		return
+	}
+
+	utils.Logger("Response Body:", string(body), "Status:", resp.Status)
 }
 
 func registerJob(minSec, maxSec int, options requestOptions) {
@@ -84,7 +81,10 @@ func registerJob(minSec, maxSec int, options requestOptions) {
 			time.Duration(minSec)*time.Second,
 			time.Duration(maxSec)*time.Second,
 		),
-		createTask(options),
+		gocron.NewTask(
+			processRequest,
+			options,
+		),
 	)
 	if err != nil {
 		utils.Logger("Error creating job:", err)
