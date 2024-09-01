@@ -25,7 +25,7 @@ func TestStartHandler(t *testing.T) {
 	}
 
 	// check response body
-	expected := map[string]string{"message": "Scheduler Start! To stop, please access /stop"}
+	expected := map[string]string{"message": "Sucessfully started the job! To stop, please access /stop"}
 	var actual map[string]string
 	if err := json.Unmarshal(rr.Body.Bytes(), &actual); err != nil {
 		t.Fatalf("could not unmarshal response: %v", err)

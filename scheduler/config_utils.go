@@ -34,7 +34,7 @@ func getIntEnv(envKey string, defaultValue int) int {
 	}
 	value, err := strconv.Atoi(valueStr)
 	if err != nil {
-		utils.Logger("⚠️ invalid value for", envKey, err)
+		utils.Logger("🚨 invalid value for", utils.Yellow(envKey), err)
 		return defaultValue
 	}
 	return value
@@ -47,7 +47,7 @@ func getBoolEnv(envKey string, defaultValue bool) bool {
 	}
 	value, err := strconv.ParseBool(valueStr)
 	if err != nil {
-		utils.Logger("⚠️ invalid value for", envKey, err)
+		utils.Logger("🚨 invalid value for", utils.Yellow(envKey), err)
 		return defaultValue
 	}
 	return value
@@ -55,7 +55,8 @@ func getBoolEnv(envKey string, defaultValue bool) bool {
 
 // Reads the JSON file and returns its content as a byte slice.
 func getRequestBody() []byte {
-	file, err := os.Open(defaultFilePath)
+	filePath := getStrEnv("FILE_PATH", defaultFilePath)
+	file, err := os.Open(filePath)
 	if err != nil {
 		// if the file does not exist, return nil
 		utils.Logger("Error opening file:", err)

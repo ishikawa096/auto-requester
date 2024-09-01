@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/ishikawa096/auto-requester/scheduler"
 	"github.com/ishikawa096/auto-requester/utils"
@@ -13,7 +12,7 @@ import (
 // Stop job handler
 func StopHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]string{"message": "job stop! To restart, please access /start"}
+	response := map[string]string{"message": "Sucessfully stopped the job! To restart, please access /start"}
 	json.NewEncoder(w).Encode(response)
 
 	err := scheduler.Scheduler.StopJobs()
@@ -21,6 +20,6 @@ func StopHandler(w http.ResponseWriter, r *http.Request) {
 		utils.Logger("Error stoping jobs:", err)
 		os.Exit(1)
 	} else {
-		utils.Logger(time.Now(), "Scheduler Stop Jobs!")
+		utils.Logger(utils.Yellow("Scheduler Stop...💤"))
 	}
 }

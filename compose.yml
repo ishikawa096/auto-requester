@@ -12,6 +12,8 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - PORT=8081
+      - FILE_PATH=/etc/app/body.json
       - INTERVAL_MIN_SEC=4
       - INTERVAL_MAX_SEC=6
       - TARGET_URL=https://httpbin.org/post

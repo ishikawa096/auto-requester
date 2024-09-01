@@ -25,7 +25,7 @@ func TestStopHandler(t *testing.T) {
 	}
 
 	// check response body
-	expected := map[string]string{"message": "job stop! To restart, please access /start"}
+	expected := map[string]string{"message": "Sucessfully stopped the job! To restart, please access /start"}
 	var actual map[string]string
 	if err := json.Unmarshal(rr.Body.Bytes(), &actual); err != nil {
 		t.Fatalf("could not unmarshal response: %v", err)
