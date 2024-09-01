@@ -5,19 +5,18 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/ishikawa096/auto-requester/utils"
 )
 
-type httpOptions struct {
+type requestOptions struct {
 	method      string // GET, POST, PUT, DELETE
 	url         string
 	contentType string
 	body        []byte
+	randomize   bool
 }
 
 var Scheduler gocron.Scheduler
@@ -32,9 +31,17 @@ func init() {
 	}
 }
 
-func sendRequest(options httpOptions) (*http.Response, error) {
-	// リクエストボディを再利用可能な形にするために、bytes.Readerを使用
-	bodyReader := bytes.NewReader(options.body)
+// if randomize is true, select a random element from the array
+func collectRequestBody(requestBody []byte, randomize bool) []byte {
+	if randomize {
+		return selectRandomElement(requestBody)
+	}
+	return requestBody
+}
+
+func performHttpRequest(requestBody []byte, options requestOptions) (*http.Response, error) {
+	// To use the request body multiple times, we need to create a reader
+	bodyReader := bytes.NewReader(requestBody)
 
 	req, err := http.NewRequest(options.method, options.url, bodyReader)
 	if err != nil {
@@ -47,38 +54,37 @@ func sendRequest(options httpOptions) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return resp, nil
 }
 
-func createTask(options httpOptions) gocron.Task {
-	return gocron.NewTask(
-		func(options httpOptions) {
-			resp, err := sendRequest(options)
-			if err != nil {
-				utils.Logger("Error sending request:", err)
-				return
-			}
-			defer resp.Body.Close()
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				utils.Logger("Error reading response body:", err)
-				return
-			}
+func processRequest(options requestOptions) {
+	requestBody := collectRequestBody(options.body, options.randomize)
+	resp, err := performHttpRequest(requestBody, options)
+	if err != nil {
+		utils.Logger("Error sending request:", err)
+		return
+	}
+	defer resp.Body.Close()
 
-			utils.Logger("Response Body:", string(body), "Status:", resp.Status)
-		},
-		options,
-	)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		utils.Logger("Error reading response body:", err)
+		return
+	}
+
+	utils.Logger("Response Body:", string(body), "Status:", resp.Status)
 }
 
-func registerJob(minSec, maxSec int, options httpOptions) {
+func registerJob(minSec, maxSec int, options requestOptions) {
 	_, err := Scheduler.NewJob(
 		gocron.DurationRandomJob(
 			time.Duration(minSec)*time.Second,
 			time.Duration(maxSec)*time.Second,
 		),
-		createTask(options),
+		gocron.NewTask(
+			processRequest,
+			options,
+		),
 	)
 	if err != nil {
 		utils.Logger("Error creating job:", err)
@@ -86,66 +92,8 @@ func registerJob(minSec, maxSec int, options httpOptions) {
 	}
 }
 
-func getRequestBody() []byte {
-	file, err := os.Open("/etc/app/body.json")
-	if err != nil {
-		utils.Logger("Error opening file:", err)
-		os.Exit(1)
-	}
-	defer file.Close()
-	// read the file content to memory
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		utils.Logger("Error reading file:", err)
-		os.Exit(1)
-	}
-	return fileContent
-}
-
-func getSettingValues() (int, int, httpOptions) {
-	// default values
-	minSec := 3
-	maxSec := 5
-	url := "http://localhost:3000"
-	method := "GET"
-	contentType := "application/json"
-
-	if val, exists := os.LookupEnv("INTERVAL_MIN_SEC"); exists {
-		if v, err := strconv.Atoi(val); err == nil {
-			minSec = v
-		}
-	}
-	if val, exists := os.LookupEnv("INTERVAL_MAX_SEC"); exists {
-		if v, err := strconv.Atoi(val); err == nil {
-			maxSec = v
-		}
-	}
-	if val, exists := os.LookupEnv("HTTP_METHOD"); exists {
-		method = strings.ToUpper(val)
-	}
-	if val, exists := os.LookupEnv("TARGET_URL"); exists {
-		url = val
-	}
-	if val, exists := os.LookupEnv("CONTENT_TYPE"); exists {
-		contentType = val
-	}
-
-	var requestBody []byte = nil
-	if method == "POST" || method == "PUT" {
-		requestBody = getRequestBody()
-	}
-
-	options := httpOptions{
-		method:      method,
-		url:         url,
-		contentType: contentType,
-		body:        requestBody,
-	}
-	return minSec, maxSec, options
-}
-
 func StartJob() {
-	registerJob(getSettingValues())
+	registerJob(getConfigs())
 
 	// start the scheduler
 	Scheduler.Start()

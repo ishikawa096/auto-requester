@@ -17,3 +17,4 @@ services:
       - TARGET_URL=https://httpbin.org/post
       - HTTP_METHOD=POST
       - CONTENT_TYPE=application/json
+      - RANDOMIZE=true
