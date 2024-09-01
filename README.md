@@ -10,17 +10,17 @@ docker image を利用することですぐに利用可能です。<br>
 2. `$ docker compose up auto-requester`
 3. コンテナが起動すると、environment で指定した URL に対しリクエストの送信を始めます 🥳
 
-### サーバーの停止
+### Stop the job
 
-以下のコマンドを使用して、`http://localhost:8080/stop`に GET リクエストを送信し、サーバーを停止します。
+以下のコマンドを使用して、`http://localhost:8080/stop`に GET リクエストを送信し、ジョブを停止します。
 
 ```sh
 curl http://localhost:8080/stop
 ```
 
-### サーバーの再開
+### Restart the job
 
-以下のコマンドを使用して、`http://localhost:8080/start`に GET リクエストを送信し、サーバーを再開します。
+以下のコマンドを使用して、`http://localhost:8080/start`に GET リクエストを送信し、ジョブを再開します。
 
 ```sh
 curl http://localhost:8080/start
@@ -47,6 +47,8 @@ services:
     ports:
       - '8080:8080'
     environment:
+      - PORT=8080
+      - FILE_PATH=/etc/app/body.json
       - INTERVAL_MIN_SEC=4
       - INTERVAL_MAX_SEC=6
       - TARGET_URL=https://httpbin.org/post
@@ -57,14 +59,16 @@ services:
 
 ### environments
 
-| env              | description                                                                                                                                                                    | default               |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
-| INTERVAL_MIN_SEC | リクエストを送信する最小の間隔(秒)                                                                                                                                             | 3                     |
-| INTERVAL_MAX_SEC | リクエストを送信する最大の時間間隔(秒)<br>INTERVAL_MIN_SEC との間のランダムな間隔でリクエストが実行されます。<br>一定間隔にしたい場合、INTERVAL_MIN_SEC と同じ値にしてください | 5                     |
-| TARGET_URL       | リクエストの送信先 URL                                                                                                                                                         | http://localhost:3000 |
-| HTTP_METHOD      | リクエストの HTTP メソッド                                                                                                                                                     | GET                   |
-| CONTENT_TYPE     | リクエストに含める HTTP ヘッダー                                                                                                                                               | application/json      |
-| RANDOMIZE        | リクエストボディの json が配列の場合、配列内の要素から 1 つを毎回ランダムに選択し、リクエストボディとして用います                                                              | true                  |
+| env              | description                                                                                                                                                                     | default               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| PORT             | ジョブの停止/再開を受け付けるサーバーのポート番号<br>ports で指定したコンテナ側のポートと一致させてください                                                                     | 8080                  |
+| FILE_PATH        | リクエストボディとなるファイルのパス<br>マウント先のパスと一致させてください                                                                                                    | /etc/app/body.json    |
+| INTERVAL_MIN_SEC | リクエストを送信する最小の間隔(秒)                                                                                                                                              | 3                     |
+| INTERVAL_MAX_SEC | リクエストを送信する最大の時間間隔(秒)<br>INTERVAL_MIN_SEC との間のランダムな間隔でリクエストが実行されます。<br> 一定間隔にしたい場合、INTERVAL_MIN_SEC と同じ値にしてください | 5                     |
+| TARGET_URL       | リクエストの送信先 URL                                                                                                                                                          | http://localhost:3000 |
+| HTTP_METHOD      | リクエストの HTTP メソッド                                                                                                                                                      | GET                   |
+| CONTENT_TYPE     | リクエストの Content-Type ヘッダー                                                                                                                                              | application/json      |
+| RANDOMIZE        | true にするとリクエストボディの json が配列の場合、配列内の要素から 1 つを毎回ランダムに選択します                                                                              | true                  |
 
 ## Link
 
@@ -79,6 +83,7 @@ services:
 <details>
 <summary>✅Completed</summary>
 
+- 色付きログ
 - RANDOM_BODY の実装
 - 自動テスト
 - 異常系のテストコード追加
